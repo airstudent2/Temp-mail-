@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temp Mail Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #1f2937; font-family: 'Segoe UI', sans-serif; }
+        .premium-badge { background: #ffd700; color: #000; font-weight: bold; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+        .scan-line { width: 100%; height: 2px; background: linear-gradient(to right, transparent, #10b981, transparent); animation: scan 2s linear infinite; }
+        @keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-white">
+
+    <!-- Header similar to Image 3 -->
+    <header class="flex justify-between items-center p-4 bg-gray-900 shadow-md">
+        <div class="flex items-center gap-2">
+            <i class="fas fa-envelope text-green-500 text-xl"></i>
+            <span class="font-bold text-lg">TEMP<span class="text-green-500">MAIL</span></span>
+        </div>
+        <button class="bg-yellow-400 text-black px-4 py-1 rounded-full text-sm font-bold shadow hover:bg-yellow-300">
+            Premium 👑
+        </button>
+    </header>
+
+    <main class="flex-1 flex flex-col items-center p-4 mt-8">
+        
+        <h2 class="text-xl font-semibold mb-6 text-center">Your Temporary Email Address</h2>
+
+        <!-- Email Box (Like Image 4) -->
+        <div class="w-full max-w-md bg-gray-800 rounded-xl p-1 relative overflow-hidden shadow-2xl border border-gray-700">
+            <div class="scan-line absolute top-0 left-0"></div>
+            <div class="bg-gray-900 rounded-lg p-4 flex items-center justify-between">
+                <input type="text" id="emailInput" value="Loading..." readonly 
+                    class="bg-transparent text-gray-300 text-center w-full outline-none text-sm md:text-base tracking-wide truncate">
+            </div>
+        </div>
+
+        <!-- Buttons (QR & Copy) -->
+        <div class="flex gap-4 mt-6 w-full max-w-md">
+            <button class="flex-1 bg-gray-700 hover:bg-gray-600 py-3 rounded-lg font-medium transition flex justify-center items-center gap-2 border border-gray-600">
+                <i class="fas fa-qrcode"></i> QR code
+            </button>
+            <button onclick="copyToClipboard()" class="flex-1 bg-green-500 hover:bg-green-600 py-3 rounded-lg font-medium transition flex justify-center items-center gap-2 shadow-lg shadow-green-500/30 text-white">
+                <i class="far fa-copy"></i> Copy
+            </button>
+        </div>
+
+        <!-- Description -->
+        <p class="text-gray-500 text-center text-xs mt-8 max-w-sm leading-relaxed">
+            Forget about spam, advertising mailings, hacking and attacking robots. Keep your real mailbox clean and secure.
+        </p>
+
+        <!-- Inbox Area -->
+        <div class="w-full max-w-md mt-10">
+            <div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-4">
+                <span class="text-gray-400 font-bold text-sm">INBOX</span>
+                <button onclick="fetchMessages()" class="text-green-400 text-xs hover:text-green-300">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            <div id="inbox" class="space-y-2">
+                <!-- Messages will load here -->
+                <div class="text-center py-8 text-gray-600 bg-gray-800/50 rounded-lg border border-dashed border-gray-700">
+                    <i class="fas fa-inbox text-2xl mb-2"></i>
+                    <p class="text-sm">Waiting for incoming emails...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // URL থেকে ডাটা নেওয়া
+        const params = new URLSearchParams(window.location.search);
+        const email = params.get('email');
+        const token = params.get('token');
+
+        // সেটাপ
+        if (email && token) {
+            document.getElementById('emailInput').value = email;
+            // অটো রিফ্রেশ চালু (৫ সেকেন্ড পর পর)
+            setInterval(fetchMessages, 5000);
+            fetchMessages(); // প্রথমবার কল
+        } else {
+            document.getElementById('emailInput').value = "No account linked via Bot";
+        }
+
+        function copyToClipboard() {
+            const copyText = document.getElementById("emailInput");
+            copyText.select();
+            copyText.setSelectionRange(0, 99999); 
+            navigator.clipboard.writeText(copyText.value);
+            alert("Copied: " + copyText.value);
+        }
+
+        async function fetchMessages() {
+            if (!token) return;
+            try {
+                const res = await fetch("https://api.mail.tm/messages", {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const data = await res.json();
+                const messages = data['hydra:member'];
+                const inboxDiv = document.getElementById('inbox');
+
+                if (messages.length > 0) {
+                    inboxDiv.innerHTML = messages.map(msg => `
+                        <div class="bg-gray-800 p-3 rounded-lg border-l-4 border-green-500 shadow-sm hover:bg-gray-750 transition cursor-pointer">
+                            <div class="flex justify-between">
+                                <span class="font-bold text-sm text-gray-200">${msg.from.name || 'Unknown'}</span>
+                                <span class="text-xs text-gray-500">${new Date(msg.createdAt).toLocaleTimeString()}</span>
+                            </div>
+                            <div class="font-medium text-green-400 text-sm mt-1 truncate">${msg.subject}</div>
+                            <div class="text-xs text-gray-400 mt-1 line-clamp-1">${msg.intro || '...'}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error("Error fetching messages");
+            }
+        }
+    </script>
+</body>
+</html>
