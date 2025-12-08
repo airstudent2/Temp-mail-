@@ -8,16 +8,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { background-color: #111827; font-family: 'Segoe UI', sans-serif; color: white; }
-        
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Modal Styles */
-        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
-        .modal-content { margin: 5% auto; background-color: #1f2937; border: 1px solid #374151; width: 95%; max-width: 600px; height: 85vh; border-radius: 12px; display: flex; flex-direction: column; animation: slideUp 0.3s; }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); justify-content: center; items-items: center; }
+        /* QR Modal specific adjustments */
+        #qrModal .modal-content { text-align: center; max-width: 320px; }
+        
+        .modal-content { margin: auto; background-color: #1f2937; border: 1px solid #374151; width: 90%; max-width: 600px; border-radius: 16px; padding: 20px; position: relative; animation: slideUp 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-        /* Toast */
         #toast { visibility: hidden; min-width: 250px; background-color: #10b981; color: #fff; text-align: center; border-radius: 50px; padding: 12px; position: fixed; z-index: 100; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
         #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
         @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
@@ -33,7 +34,7 @@
             <span class="font-bold text-xl tracking-wide">TEMP<span class="text-emerald-500">MAIL</span></span>
         </div>
         <div class="bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
-            <span class="text-xs text-emerald-400 font-bold">● LIVE</span>
+            <span class="text-xs text-emerald-400 font-bold">● ONLINE</span>
         </div>
     </header>
 
@@ -45,7 +46,7 @@
             <div class="bg-gray-800 p-1 rounded-xl border border-gray-700 shadow-2xl">
                 <div class="bg-gray-900 rounded-lg p-4 flex items-center justify-between gap-2">
                     <input type="text" id="emailInput" value="Loading..." readonly 
-                        class="bg-transparent text-emerald-400 font-mono text-center w-full outline-none text-base truncate">
+                        class="bg-transparent text-emerald-400 font-mono text-center w-full outline-none text-base truncate cursor-pointer" onclick="copyToClipboard()">
                 </div>
             </div>
         </div>
@@ -80,22 +81,26 @@
     <!-- Toast -->
     <div id="toast"><i class="fas fa-check-circle"></i> Email Copied!</div>
 
-    <!-- QR Modal -->
-    <div id="qrModal" class="modal">
-        <div class="modal-content !h-auto !max-w-sm text-center">
-            <span onclick="closeModal('qrModal')" class="absolute top-3 right-4 text-gray-400 text-2xl cursor-pointer hover:text-white">&times;</span>
-            <h2 class="text-xl font-bold mb-4 text-emerald-400">Scan QR Code</h2>
-            <div class="bg-white p-2 inline-block rounded-lg mb-4">
-                <img id="qrImage" src="" alt="QR Code" width="150" height="150">
+    <!-- QR Modal (Using Your API) -->
+    <div id="qrModal" class="modal flex items-center justify-center">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-emerald-400">Scan QR Code</h2>
+                <span onclick="closeModal('qrModal')" class="text-gray-400 text-2xl cursor-pointer hover:text-white">&times;</span>
             </div>
-            <p class="text-sm text-gray-400 break-all px-4" id="qrText"></p>
+            
+            <div class="bg-white p-4 rounded-xl flex justify-center items-center mb-4 min-h-[180px]">
+                <div id="qrDisplay" class="flex justify-center items-center w-full h-full text-black">
+                    Generating...
+                </div>
+            </div>
+            <p class="text-xs text-gray-400 break-all text-center px-2" id="qrText"></p>
         </div>
     </div>
 
     <!-- Email Reader Modal -->
-    <div id="mailModal" class="modal">
-        <div class="modal-content">
-            <!-- Modal Header -->
+    <div id="mailModal" class="modal flex items-center justify-center">
+        <div class="modal-content !h-[85vh]">
             <div class="flex justify-between items-start mb-2 border-b border-gray-700 pb-3">
                 <div class="w-11/12">
                     <h3 class="text-lg font-bold text-white truncate" id="mailSubject">Loading...</h3>
@@ -103,20 +108,33 @@
                 </div>
                 <span onclick="closeModal('mailModal')" class="text-gray-400 text-3xl cursor-pointer hover:text-red-400 leading-none">&times;</span>
             </div>
-            
-            <!-- Email Body Iframe -->
             <div class="flex-1 bg-white rounded-lg overflow-hidden relative">
                 <iframe id="mailFrame" class="w-full h-full border-none" sandbox="allow-same-origin"></iframe>
             </div>
-            
             <button onclick="closeModal('mailModal')" class="mt-3 w-full bg-gray-700 hover:bg-gray-600 py-3 rounded-lg font-bold text-sm text-white">Close Message</button>
         </div>
     </div>
 
     <script>
+        // Data Extraction logic
         const params = new URLSearchParams(window.location.search);
-        const email = params.get('email');
-        const token = params.get('token');
+        let email = params.get('email');
+        let token = params.get('token');
+        
+        // ✅ NEW: Decode the 'd' parameter (Secure Link)
+        const encodedData = params.get('d');
+        if (encodedData) {
+            try {
+                // Decode Base64 (handle urlsafe chars)
+                const jsonStr = atob(encodedData.replace(/-/g, '+').replace(/_/g, '/'));
+                const data = JSON.parse(jsonStr);
+                email = data.e;
+                token = data.t;
+            } catch(e) {
+                console.error("Decoding error", e);
+            }
+        }
+
         let allMessages = [];
 
         if (email && token) {
@@ -140,43 +158,54 @@
             setTimeout(() => x.className = x.className.replace("show", ""), 3000);
         }
 
-        function showQR() {
+        // ✅ NEW: QR Code Function using YOUR API
+        async function showQR() {
             const val = document.getElementById('emailInput').value;
-            if (val.includes("@")) {
-                document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${val}`;
-                document.getElementById('qrText').innerText = val;
-                document.getElementById('qrModal').style.display = "block";
+            if (!val.includes("@")) return;
+
+            document.getElementById('qrModal').style.display = "flex";
+            document.getElementById('qrText').innerText = val;
+            const display = document.getElementById('qrDisplay');
+            display.innerHTML = '<span class="text-gray-500 animate-pulse">Loading API...</span>';
+
+            try {
+                // Fetching SVG from your API
+                const res = await fetch(`https://qr-api-phi.vercel.app/api?text=${encodeURIComponent(val)}`);
+                const svgText = await res.text();
+                
+                // Inject SVG
+                display.innerHTML = svgText;
+                
+                // Force SVG Size
+                const svg = display.querySelector('svg');
+                if(svg) {
+                    svg.setAttribute('width', '180');
+                    svg.setAttribute('height', '180');
+                    svg.style.maxWidth = "100%";
+                    svg.style.height = "auto";
+                }
+            } catch (e) {
+                display.innerHTML = '<span class="text-red-500">API Error</span>';
             }
         }
 
-        // ✅ FIXED: Fetch Full Email Content & Render in Iframe
         async function openMail(msgId) {
-            document.getElementById('mailModal').style.display = "block";
+            document.getElementById('mailModal').style.display = "flex";
             document.getElementById('mailSubject').innerText = "Loading...";
             document.getElementById('mailFrom').innerText = "";
-            
-            // Clear previous iframe content
             const iframe = document.getElementById('mailFrame');
             iframe.srcdoc = "<style>body{font-family:sans-serif;text-align:center;color:#555;padding-top:20px;}</style><body>Loading email content...</body>";
 
             try {
-                // Fetch full message details using ID
                 const res = await fetch(`https://api.mail.tm/messages/${msgId}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 const fullMsg = await res.json();
-
                 document.getElementById('mailSubject').innerText = fullMsg.subject;
                 document.getElementById('mailFrom').innerText = `From: ${fullMsg.from.address}`;
-
-                // Prefer HTML, fallback to text
                 const content = fullMsg.html ? fullMsg.html[0] : (fullMsg.text || "No content available.");
-                
-                // Inject content into iframe safely
                 iframe.srcdoc = content;
-
             } catch (err) {
-                console.error(err);
                 iframe.srcdoc = "<body>Error loading email content.</body>";
             }
         }
@@ -184,9 +213,7 @@
         async function fetchMessages() {
             if (!token) return;
             try {
-                const res = await fetch("https://api.mail.tm/messages", {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
+                const res = await fetch("https://api.mail.tm/messages", { headers: { "Authorization": `Bearer ${token}` } });
                 const data = await res.json();
                 allMessages = data['hydra:member'];
                 const inboxDiv = document.getElementById('inbox');
@@ -206,12 +233,8 @@
             } catch (err) { console.error("Fetch error", err); }
         }
 
-        function closeModal(id) {
-            document.getElementById(id).style.display = "none";
-        }
-        window.onclick = function(e) {
-            if (e.target.classList.contains('modal')) e.target.style.display = "none";
-        }
+        function closeModal(id) { document.getElementById(id).style.display = "none"; }
+        window.onclick = function(e) { if (e.target.classList.contains('modal')) e.target.style.display = "none"; }
     </script>
 </body>
 </html>
