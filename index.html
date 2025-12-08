@@ -2,311 +2,328 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Temp Mail Pro</title>
-    
-    <!-- Icons & Fonts -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Temp Mail</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- QR Library (Offline) -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
-                    colors: { 
-                        dark: { 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
-                        primary: '#6366f1', 
-                        accent: '#a855f7'
-                    },
-                    animation: {
-                        'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    },
-                    keyframes: {
-                        slideUp: { '0%': { transform: 'translateY(100px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
-                    }
-                }
-            }
-        }
-    </script>
-
     <style>
-        body { background-color: #0f172a; color: white; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        body { background-color: #22262f; font-family: 'Roboto', sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
         
-        /* Glassmorphism */
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-        .glass-card { background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
+        /* Smooth Fade */
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Bottom Sheet Logic */
-        .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 50; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
-        .sheet-overlay.active { opacity: 1; visibility: visible; }
-        .sheet-content { position: fixed; bottom: -100%; left: 0; right: 0; background: #1e293b; border-radius: 24px 24px 0 0; padding: 24px; transition: bottom 0.4s cubic-bezier(0.19, 1, 0.22, 1); z-index: 51; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,0.6); }
+        /* Loader Animation */
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Modal / Sheet */
+        .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 50; visibility: hidden; opacity: 0; transition: 0.3s; }
+        .sheet-overlay.active { visibility: visible; opacity: 1; }
+        .sheet-content { position: fixed; bottom: -100%; left: 0; width: 100%; background: #fff; border-radius: 20px 20px 0 0; transition: 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); z-index: 51; height: 90vh; display: flex; flex-direction: column; }
         .sheet-overlay.active .sheet-content { bottom: 0; }
-        
-        .handle { width: 40px; height: 5px; background: #475569; border-radius: 10px; margin: 0 auto 20px auto; }
-
-        /* QR Style */
-        #qrDisplay { display: flex; justify-content: center; }
-        #qrDisplay img { border-radius: 12px; border: 6px solid white; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
 
         /* Toast */
-        #toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: #10b981; color: white; padding: 10px 20px; border-radius: 50px; font-weight: 600; font-size: 14px; opacity: 0; transition: all 0.3s ease; z-index: 100; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4); display: flex; align-items: center; gap: 8px; pointer-events: none; }
-        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        #toast { position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 24px; border-radius: 50px; font-size: 14px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        #toast.show { opacity: 1; bottom: 80px; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen selection:bg-indigo-500 selection:text-white">
+<body class="flex flex-col min-h-screen">
 
-    <!-- Background Glows -->
-    <div class="fixed top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
-
-    <!-- Header -->
-    <header class="fixed top-0 w-full z-40 px-6 py-4 glass flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                <i class="fas fa-envelope text-lg"></i>
-            </div>
-            <div>
-                <h1 class="font-bold text-lg leading-tight tracking-wide text-white">Temp<span class="text-indigo-400">Mail</span></h1>
-                <p class="text-[10px] text-slate-400 font-medium tracking-widest uppercase">Premium</p>
-            </div>
-        </div>
-        <div class="flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/50">
-            <span class="relative flex h-2.5 w-2.5">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span class="text-xs text-slate-300 font-medium">Live</span>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col items-center pt-28 pb-6 px-5 w-full max-w-lg mx-auto z-10 animate-slide-up">
+    <!-- TOP SECTION (DARK) -->
+    <div class="bg-[#22262f] p-5 pb-8 flex flex-col items-center shadow-xl z-10 relative">
         
-        <!-- Email Card -->
-        <div class="w-full relative group">
-            <div class="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-            <div class="relative glass-card rounded-2xl p-6 text-center">
-                <p class="text-slate-400 text-[11px] font-bold uppercase tracking-[0.2em] mb-3">Your Secure Address</p>
-                
-                <div class="relative group cursor-pointer" onclick="copyToClipboard()">
-                    <input type="text" id="emailInput" value="Loading..." readonly 
-                        class="bg-transparent text-white font-mono text-xl md:text-2xl text-center w-full outline-none truncate pb-1 cursor-pointer transition group-hover:text-indigo-300">
-                    <p class="text-[10px] text-emerald-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Tap to Copy</p>
-                </div>
+        <!-- Header -->
+        <div class="w-full flex justify-between items-center mb-8">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-envelope text-emerald-400 text-2xl"></i>
+                <span class="text-white font-bold text-xl tracking-wide">TEMP<span class="text-emerald-400">MAIL</span></span>
+            </div>
+            <button class="bg-[#facc15] text-black text-xs font-bold px-4 py-1.5 rounded-full shadow hover:bg-yellow-300 transition">
+                Premium 👑
+            </button>
+        </div>
+
+        <h2 class="text-gray-400 text-sm font-medium mb-4 tracking-wide">Your Temporary Email Address</h2>
+
+        <!-- Email Box -->
+        <div class="w-full bg-[#2c3039] rounded-xl p-1 mb-6 border border-gray-700/50 shadow-inner">
+            <div class="bg-[#353a45] rounded-lg p-4 flex items-center justify-between">
+                <input type="text" id="emailInput" value="Loading..." readonly 
+                    class="bg-transparent text-white text-lg w-full outline-none text-center font-mono truncate px-2">
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="grid grid-cols-2 gap-4 w-full mt-6">
-            <button onclick="openQR()" class="glass-card p-4 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-800/60 transition active:scale-95 group">
-                <div class="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center text-indigo-400 group-hover:text-white transition shadow-inner">
-                    <i class="fas fa-qrcode text-lg"></i>
-                </div>
-                <span class="text-xs font-medium text-slate-300">QR Code</span>
+        <!-- Top Action Buttons (QR & Copy) -->
+        <div class="flex gap-4 w-full">
+            <button onclick="openQR()" class="flex-1 bg-[#374151] text-gray-200 py-3.5 rounded-xl font-medium shadow-lg active:scale-95 transition flex items-center justify-center gap-2 border border-gray-600">
+                <i class="fas fa-qrcode"></i> QR code
             </button>
-            <button onclick="copyToClipboard()" class="glass-card p-4 rounded-2xl flex flex-col items-center gap-2 hover:bg-slate-800/60 transition active:scale-95 group">
-                <div class="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center text-emerald-400 group-hover:text-white transition shadow-inner">
-                    <i class="far fa-copy text-lg"></i>
-                </div>
-                <span class="text-xs font-medium text-slate-300">Copy</span>
+            <button onclick="copyToClipboard()" class="flex-1 bg-[#10b981] text-white py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition flex items-center justify-center gap-2">
+                <i class="far fa-copy"></i> Copy
+            </button>
+        </div>
+    </div>
+
+    <!-- BOTTOM SECTION (WHITE) -->
+    <div class="flex-1 bg-[#f3f4f6] rounded-t-[30px] -mt-5 pt-8 px-4 pb-4 flex flex-col relative z-20">
+        
+        <!-- 4 Grid Buttons -->
+        <div class="grid grid-cols-2 gap-3 mb-8">
+            <button onclick="copyToClipboard()" class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-center gap-2 active:scale-95 transition">
+                <i class="far fa-copy text-gray-700"></i> <span class="text-sm font-semibold text-gray-700">Copy</span>
+            </button>
+            <button onclick="fetchMessages(true)" class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-center gap-2 active:scale-95 transition">
+                <i class="fas fa-sync-alt text-gray-700"></i> <span class="text-sm font-semibold text-gray-700">Refresh</span>
+            </button>
+            <button onclick="changeEmail()" class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-center gap-2 active:scale-95 transition">
+                <i class="fas fa-pen text-gray-700"></i> <span class="text-sm font-semibold text-gray-700">Change</span>
+            </button>
+            <button onclick="deleteEmail()" class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-center gap-2 active:scale-95 transition">
+                <i class="fas fa-times text-gray-700"></i> <span class="text-sm font-semibold text-gray-700">Delete</span>
             </button>
         </div>
 
-        <!-- Inbox Section -->
-        <div class="w-full mt-8 flex-1 flex flex-col min-h-[300px]">
-            <div class="flex justify-between items-end mb-4 px-2">
-                <h3 class="text-slate-300 font-bold text-xs uppercase tracking-widest">Incoming Mails</h3>
-                <button onclick="fetchMessages()" class="text-indigo-400 text-xs font-medium hover:text-white flex items-center gap-1 transition active:opacity-70 bg-slate-800/50 px-3 py-1 rounded-lg">
-                    <i class="fas fa-sync-alt"></i> Refresh
+        <!-- Inbox Container -->
+        <div class="bg-[#22262f] rounded-xl overflow-hidden shadow-2xl flex flex-col flex-1 min-h-[300px]">
+            <!-- Inbox Header -->
+            <div class="bg-[#2c3039] p-4 flex justify-between items-center border-b border-gray-700">
+                <span class="text-white font-bold tracking-wider text-sm">INBOX</span>
+                <button class="bg-[#374151] text-gray-300 text-xs px-3 py-1 rounded-md flex items-center gap-1">
+                    Temp Number <i class="fas fa-arrow-right text-[10px]"></i>
                 </button>
             </div>
 
-            <!-- Message List -->
-            <div id="inbox" class="space-y-3 pb-24 w-full">
-                <!-- Loading State -->
-                <div class="glass-card rounded-2xl p-8 text-center border-dashed border-2 border-slate-700/50 flex flex-col items-center justify-center h-48 animate-pulse">
-                    <div class="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mb-3">
-                        <i class="fas fa-inbox text-3xl text-slate-600"></i>
+            <!-- Inbox List / Empty State -->
+            <div id="inbox" class="flex-1 bg-white p-4 space-y-3 overflow-y-auto relative">
+                <!-- Empty State -->
+                <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-envelope-open text-3xl text-gray-300"></i>
                     </div>
-                    <p class="text-slate-500 text-sm">Waiting for emails...</p>
+                    <p class="text-sm">Your inbox is empty</p>
+                    <div class="mt-4 animate-spin text-emerald-500 text-2xl hidden" id="loadingSpinner">
+                        <i class="fas fa-circle-notch"></i>
+                    </div>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
 
     <!-- Toast Notification -->
-    <div id="toast">
-        <i class="fas fa-check-circle"></i>
-        <span>Copied successfully!</span>
-    </div>
+    <div id="toast">Copied to clipboard</div>
 
-    <!-- QR Sheet (Bottom Sheet) -->
+    <!-- QR Code Modal -->
     <div id="qrSheet" class="sheet-overlay">
-        <div class="sheet-content items-center">
-            <div class="handle"></div>
-            <h2 class="text-xl font-bold text-white mb-2">Scan Address</h2>
-            
-            <div class="bg-white p-4 rounded-2xl shadow-2xl mb-4 mt-2">
-                <div id="qrDisplay"></div>
+        <div class="sheet-content !h-auto !bg-[#22262f] !rounded-t-[25px] pb-8 text-white">
+            <div class="w-12 h-1.5 bg-gray-600 rounded-full mx-auto mt-4 mb-6"></div>
+            <h2 class="text-center text-xl font-bold mb-6">QR Code</h2>
+            <div class="flex justify-center mb-6">
+                <div id="qrDisplay" class="bg-white p-3 rounded-xl shadow-lg"></div>
             </div>
-            
-            <p class="text-sm text-white font-mono break-all text-center px-4" id="qrText"></p>
-            
-            <!-- Branding Link -->
-            <div class="flex items-center gap-1 mt-2 mb-6">
-                <i class="fas fa-link text-xs text-slate-500"></i>
-                <p class="text-xs text-slate-500">temp-mail-mlkd.vercel.app</p>
-            </div>
-
-            <button onclick="closeSheet('qrSheet')" class="w-full bg-slate-800 hover:bg-slate-700 py-3.5 rounded-xl font-bold text-sm text-white transition border border-slate-700">Close</button>
+            <p id="qrText" class="text-center text-sm text-gray-400 break-all px-8 font-mono"></p>
+            <button onclick="closeSheet('qrSheet')" class="mx-6 mt-8 bg-emerald-500 py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-600 transition">Close</button>
         </div>
     </div>
 
-    <!-- Email Reader Sheet -->
+    <!-- Email Reader Modal -->
     <div id="mailSheet" class="sheet-overlay">
-        <div class="sheet-content !h-[92vh]">
-            <div class="handle"></div>
-            
-            <!-- Email Header -->
-            <div class="flex justify-between items-start mb-4 border-b border-slate-700/50 pb-4">
+        <div class="sheet-content !bg-gray-50 text-slate-800">
+            <!-- Header -->
+            <div class="flex justify-between items-start p-5 border-b border-gray-200 bg-white">
                 <div class="w-10/12">
-                    <h3 class="text-lg font-bold text-white truncate leading-tight" id="mailSubject">Subject</h3>
-                    <p class="text-xs text-indigo-400 mt-1 truncate" id="mailFrom">From: ...</p>
+                    <h3 id="mailSubject" class="font-bold text-lg leading-tight mb-1 text-gray-900">Subject</h3>
+                    <p id="mailFrom" class="text-xs text-gray-500 truncate bg-gray-100 px-2 py-1 rounded inline-block">From: sender</p>
                 </div>
-                <button onclick="closeSheet('mailSheet')" class="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition">
+                <button onclick="closeSheet('mailSheet')" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition flex items-center justify-center">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <!-- Email Body -->
-            <div class="flex-1 bg-white rounded-xl overflow-hidden relative shadow-inner">
+            <!-- Body -->
+            <div class="flex-1 relative bg-white">
                 <iframe id="mailFrame" class="w-full h-full border-none" sandbox="allow-same-origin"></iframe>
             </div>
         </div>
     </div>
 
     <script>
+        const API_BASE = "https://api.mail.tm";
         const params = new URLSearchParams(window.location.search);
-        let token = params.get('token');
-        
-        // --- 1. MAGIC URL CLEANER & INIT ---
+        let token = params.get('token') || localStorage.getItem('tm_token');
+
+        // --- INIT ---
         if (token) {
+            localStorage.setItem('tm_token', token);
+            // URL Cleaner
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.replaceState({path: cleanUrl}, '', cleanUrl);
-
-            fetchAccountInfo(token);
-            setInterval(fetchMessages, 5000);
-            fetchMessages();
+            
+            fetchAccountInfo();
+            setInterval(() => fetchMessages(false), 5000);
+            fetchMessages(false);
         } else {
-            document.getElementById('emailInput').value = "No Account Linked";
+            createAccount();
         }
 
-        // --- 2. API FUNCTIONS ---
-        async function fetchAccountInfo(authToken) {
+        // --- CORE LOGIC ---
+
+        async function createAccount() {
+            document.getElementById('emailInput').value = "Generating...";
             try {
-                const res = await fetch("https://api.mail.tm/me", { headers: { "Authorization": `Bearer ${authToken}` } });
+                const domRes = await fetch(`${API_BASE}/domains`);
+                const domain = (await domRes.json())['hydra:member'][0]['domain'];
+                const user = Math.random().toString(36).substring(7);
+                const pass = Math.random().toString(36).substring(7);
+                const address = `${user}@${domain}`;
+                
+                const regRes = await fetch(`${API_BASE}/accounts`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({address, password: pass})
+                });
+                
+                if(regRes.ok) {
+                    const tokRes = await fetch(`${API_BASE}/token`, {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({address, password: pass})
+                    });
+                    const data = await tokRes.json();
+                    token = data.token;
+                    localStorage.setItem('tm_token', token);
+                    document.getElementById('emailInput').value = address;
+                    showToast("New address created");
+                    fetchMessages(true);
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function fetchAccountInfo() {
+            try {
+                const res = await fetch(`${API_BASE}/me`, { headers: { "Authorization": `Bearer ${token}` } });
                 if(res.ok) {
                     const data = await res.json();
                     document.getElementById('emailInput').value = data.address;
-                } else {
-                    document.getElementById('emailInput').value = "Expired Token";
-                }
-            } catch(e) { document.getElementById('emailInput').value = "Error"; }
+                } else { createAccount(); }
+            } catch(e) { }
         }
 
-        async function fetchMessages() {
+        async function fetchMessages(manual) {
             if (!token) return;
-            try {
-                const res = await fetch("https://api.mail.tm/messages", { headers: { "Authorization": `Bearer ${token}` } });
-                const data = await res.json();
-                const inboxDiv = document.getElementById('inbox');
+            const spinner = document.getElementById('loadingSpinner');
+            if(manual) spinner.classList.remove('hidden');
 
-                if (data['hydra:member'].length > 0) {
-                    inboxDiv.innerHTML = data['hydra:member'].map(msg => `
-                        <div onclick="openMail('${msg.id}')" class="glass-card p-4 rounded-xl active:bg-slate-800 transition cursor-pointer flex gap-4 items-start animate-[slideUp_0.4s_ease-out]">
-                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-white font-bold shadow-lg shadow-indigo-500/20">
+            try {
+                const res = await fetch(`${API_BASE}/messages`, { headers: { "Authorization": `Bearer ${token}` } });
+                const data = await res.json();
+                const msgs = data['hydra:member'];
+                const inboxDiv = document.getElementById('inbox');
+                const emptyState = document.getElementById('emptyState');
+
+                if (msgs.length > 0) {
+                    emptyState.style.display = 'none';
+                    // Clear previous messages but keep emptyState hidden
+                    // Better approach: build HTML string first
+                    let html = '';
+                    msgs.forEach(msg => {
+                        html += `
+                        <div onclick="openMail('${msg.id}')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm active:bg-gray-50 transition cursor-pointer fade-in flex gap-3">
+                            <div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold flex-shrink-0">
                                 ${msg.from.name ? msg.from.name[0].toUpperCase() : '@'}
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="flex justify-between items-baseline mb-1">
-                                    <h4 class="text-sm font-bold text-slate-200 truncate">${msg.from.name || msg.from.address}</h4>
-                                    <span class="text-[10px] text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-md">${new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                <div class="flex justify-between items-start mb-0.5">
+                                    <h4 class="text-sm font-bold text-gray-900 truncate">${msg.from.name || msg.from.address}</h4>
+                                    <span class="text-[10px] text-gray-400 whitespace-nowrap ml-2">${new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                 </div>
-                                <p class="text-xs text-indigo-400 font-medium truncate mb-0.5">${msg.subject}</p>
-                                <p class="text-xs text-slate-400 truncate opacity-70">${msg.intro || 'Tap to verify...'}</p>
+                                <p class="text-xs font-medium text-emerald-600 truncate mb-0.5">${msg.subject}</p>
+                                <p class="text-xs text-gray-500 truncate">${msg.intro || 'Tap to read content...'}</p>
                             </div>
-                        </div>
-                    `).join('');
+                        </div>`;
+                    });
+                    // Insert content without overwriting emptyState div entirely
+                    // A simple way is to recreate the list each time
+                    inboxDiv.innerHTML = html;
+                    inboxDiv.appendChild(emptyState); // Keep emptyState at bottom but hidden
+                } else {
+                    inboxDiv.innerHTML = ''; 
+                    inboxDiv.appendChild(emptyState);
+                    emptyState.style.display = 'flex';
                 }
             } catch (err) { console.error(err); }
+            finally { if(manual) spinner.classList.add('hidden'); }
         }
 
         async function openMail(msgId) {
             document.getElementById('mailSheet').classList.add('active');
             document.getElementById('mailSubject').innerText = "Loading...";
-            document.getElementById('mailFrom').innerText = "";
-            
-            const iframe = document.getElementById('mailFrame');
-            iframe.srcdoc = "<div style='display:flex;justify-content:center;align-items:center;height:100vh;color:#555;font-family:sans-serif;'>Loading Content...</div>";
+            document.getElementById('mailFrame').srcdoc = "";
 
             try {
-                const res = await fetch(`https://api.mail.tm/messages/${msgId}`, { headers: { "Authorization": `Bearer ${token}` } });
+                const res = await fetch(`${API_BASE}/messages/${msgId}`, { headers: { "Authorization": `Bearer ${token}` } });
                 const fullMsg = await res.json();
                 document.getElementById('mailSubject').innerText = fullMsg.subject;
                 document.getElementById('mailFrom').innerText = `From: ${fullMsg.from.address}`;
-                iframe.srcdoc = fullMsg.html ? fullMsg.html[0] : (fullMsg.text || "No content.");
-            } catch (err) { iframe.srcdoc = "Error loading."; }
+                document.getElementById('mailFrame').srcdoc = fullMsg.html ? fullMsg.html[0] : (fullMsg.text || "No content.");
+            } catch (err) { }
         }
 
-        // --- 3. UI ACTIONS ---
-        function copyToClipboard() {
-            const input = document.getElementById("emailInput");
-            if (input.value.includes("@")) {
-                navigator.clipboard.writeText(input.value).then(showToast);
+        // --- BUTTON ACTIONS ---
+
+        function changeEmail() {
+            if(confirm("Change email address?")) {
+                localStorage.removeItem('tm_token');
+                createAccount();
             }
         }
 
-        function showToast() {
-            const t = document.getElementById("toast");
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 2000);
+        function deleteEmail() {
+            if(confirm("Delete this email?")) {
+                localStorage.removeItem('tm_token');
+                document.getElementById('emailInput').value = "Deleted";
+                document.getElementById('inbox').innerHTML = ""; // Clear messages
+                document.getElementById('emptyState').style.display = 'flex'; // Show empty
+                token = null;
+                showToast("Email deleted");
+                setTimeout(() => location.reload(), 1500);
+            }
         }
 
-        // ✅ QR Code Fix (Email Only)
+        function copyToClipboard() {
+            const input = document.getElementById("emailInput");
+            if (input.value.includes("@")) {
+                navigator.clipboard.writeText(input.value);
+                showToast("Copied to clipboard");
+            }
+        }
+
         function openQR() {
             const val = document.getElementById('emailInput').value;
             if (!val.includes("@")) return;
-
             document.getElementById('qrSheet').classList.add('active');
-            // Text Under QR = Email Address
             document.getElementById('qrText').innerText = val;
-            
             const container = document.getElementById('qrDisplay');
-            container.innerHTML = ""; 
-            
-            // ✅ QR Data = Just Email Address (No Link)
-            new QRCode(container, { 
-                text: val, 
-                width: 180, 
-                height: 180,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
+            container.innerHTML = "";
+            new QRCode(container, { text: val, width: 180, height: 180 });
         }
 
         function closeSheet(id) { document.getElementById(id).classList.remove('active'); }
         
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
         document.querySelectorAll('.sheet-overlay').forEach(overlay => {
-            overlay.addEventListener('click', function(e) {
-                if(e.target === this) this.classList.remove('active');
-            });
+            overlay.addEventListener('click', function(e) { if(e.target === this) this.classList.remove('active'); });
         });
     </script>
 </body>
