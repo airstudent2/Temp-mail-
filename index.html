@@ -12,10 +12,7 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Modal Styles */
-        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); justify-content: center; items-items: center; }
-        /* QR Modal specific adjustments */
-        #qrModal .modal-content { text-align: center; max-width: 320px; }
-        
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
         .modal-content { margin: auto; background-color: #1f2937; border: 1px solid #374151; width: 90%; max-width: 600px; border-radius: 16px; padding: 20px; position: relative; animation: slideUp 0.3s; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
@@ -81,14 +78,13 @@
     <!-- Toast -->
     <div id="toast"><i class="fas fa-check-circle"></i> Email Copied!</div>
 
-    <!-- QR Modal (Using Your API) -->
+    <!-- QR Modal -->
     <div id="qrModal" class="modal flex items-center justify-center">
-        <div class="modal-content">
+        <div class="modal-content !max-w-sm">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-emerald-400">Scan QR Code</h2>
                 <span onclick="closeModal('qrModal')" class="text-gray-400 text-2xl cursor-pointer hover:text-white">&times;</span>
             </div>
-            
             <div class="bg-white p-4 rounded-xl flex justify-center items-center mb-4 min-h-[180px]">
                 <div id="qrDisplay" class="flex justify-center items-center w-full h-full text-black">
                     Generating...
@@ -116,33 +112,45 @@
     </div>
 
     <script>
-        // Data Extraction logic
+        // Data Extraction
         const params = new URLSearchParams(window.location.search);
-        let email = params.get('email');
-        let token = params.get('token');
+        let token = null;
         
-        // ✅ NEW: Decode the 'd' parameter (Secure Link)
+        // 1. URL থেকে এনকোডেড টোকেন বের করা
         const encodedData = params.get('d');
         if (encodedData) {
             try {
-                // Decode Base64 (handle urlsafe chars)
-                const jsonStr = atob(encodedData.replace(/-/g, '+').replace(/_/g, '/'));
-                const data = JSON.parse(jsonStr);
-                email = data.e;
-                token = data.t;
+                // শুধু টোকেন ডিকোড করা হচ্ছে
+                token = atob(encodedData.replace(/-/g, '+').replace(/_/g, '/'));
             } catch(e) {
                 console.error("Decoding error", e);
             }
         }
 
-        let allMessages = [];
-
-        if (email && token) {
-            document.getElementById('emailInput').value = email;
+        // 2. অ্যাপ শুরু করা
+        if (token) {
+            fetchAccountInfo(token); // ইমেইল খুঁজে বের করা
             setInterval(fetchMessages, 5000);
             fetchMessages();
         } else {
             document.getElementById('emailInput').value = "No account linked";
+        }
+
+        // ✅ NEW: টোকেন দিয়ে ইমেইল বের করার ফাংশন
+        async function fetchAccountInfo(authToken) {
+            try {
+                const res = await fetch("https://api.mail.tm/me", {
+                    headers: { "Authorization": `Bearer ${authToken}` }
+                });
+                if(res.ok) {
+                    const data = await res.json();
+                    document.getElementById('emailInput').value = data.address;
+                } else {
+                    document.getElementById('emailInput').value = "Session Expired";
+                }
+            } catch(e) {
+                document.getElementById('emailInput').value = "Error loading email";
+            }
         }
 
         function copyToClipboard() {
@@ -158,7 +166,6 @@
             setTimeout(() => x.className = x.className.replace("show", ""), 3000);
         }
 
-        // ✅ NEW: QR Code Function using YOUR API
         async function showQR() {
             const val = document.getElementById('emailInput').value;
             if (!val.includes("@")) return;
@@ -169,14 +176,10 @@
             display.innerHTML = '<span class="text-gray-500 animate-pulse">Loading API...</span>';
 
             try {
-                // Fetching SVG from your API
+                // Using your hosted QR API
                 const res = await fetch(`https://qr-api-phi.vercel.app/api?text=${encodeURIComponent(val)}`);
                 const svgText = await res.text();
-                
-                // Inject SVG
                 display.innerHTML = svgText;
-                
-                // Force SVG Size
                 const svg = display.querySelector('svg');
                 if(svg) {
                     svg.setAttribute('width', '180');
@@ -215,7 +218,7 @@
             try {
                 const res = await fetch("https://api.mail.tm/messages", { headers: { "Authorization": `Bearer ${token}` } });
                 const data = await res.json();
-                allMessages = data['hydra:member'];
+                const allMessages = data['hydra:member'];
                 const inboxDiv = document.getElementById('inbox');
 
                 if (allMessages.length > 0) {
